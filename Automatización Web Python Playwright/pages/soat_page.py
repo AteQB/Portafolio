@@ -1,247 +1,416 @@
 from .base_page import BasePage
+from selenium.webdriver.common.by import By
+from selenium.webdriver.support.ui import WebDriverWait
+from selenium.webdriver.support import expected_conditions as EC
+from selenium.webdriver.common.action_chains import ActionChains
 import time
 
 class SoatPage(BasePage):
     """Page Object para la cotizacion de SOAT."""
 
-    def __init__(self, page):
-        super().__init__(page)
+    def navigate_to_home_and_cotizar(self):
+        """Navega a la página principal y hace clic en 'Cotizar SOAT'."""
+        print(f"\n>>> NAVEGANDO AL HOME Y COTIZANDO")
+
+        try:
+            # Navegar a la página principal
+            print("  1. Navegando a la página principal...")
+            self.navigate_to('https://www.lapositiva.com.pe/')
+            time.sleep(3)
+
+            # Esperar a que cargue completamente
+            WebDriverWait(self.driver, 15).until(
+                lambda driver: driver.execute_script("return document.readyState") == "complete"
+            )
+            time.sleep(2)
+
+            # Buscar y hacer clic en el botón "Cotizar SOAT"
+            print("  2. Buscando botón 'Cotizar SOAT'...")
+
+            # Intentar diferentes selectores para el botón
+            button_selectors = [
+                "a[href*='cotizador']",
+                "a:contains('SOAT')",
+                "[data-target*='soat']",
+                ".soat-button",
+                "button:contains('SOAT')"
+            ]
+
+            button_found = False
+            for selector in button_selectors:
+                try:
+                    if ":contains" in selector:
+                        # Para selectores que contienen texto
+                        text = selector.split("'")[1]
+                        button = WebDriverWait(self.driver, 5).until(
+                            EC.element_to_be_clickable((By.XPATH, f"//*[contains(text(), '{text}')]"))
+                        )
+                    else:
+                        button = WebDriverWait(self.driver, 5).until(
+                            EC.element_to_be_clickable((By.CSS_SELECTOR, selector))
+                        )
+
+                    # Hacer scroll al botón
+                    self.driver.execute_script("arguments[0].scrollIntoView({behavior: 'smooth', block: 'center'});", button)
+                    time.sleep(1)
+
+                    button.click()
+                    print(f"  [OK] Botón encontrado con selector: {selector}")
+                    button_found = True
+                    break
+
+                except:
+                    continue
+
+            if not button_found:
+                print("  [WARN] No se encontró botón específico, intentando navegación directa...")
+                # Si no encuentra el botón, ir directamente a la página de cotización
+                self.navigate_to('https://www.lapositiva.com.pe/wps/portal/corporativo/home/cotizador')
+                time.sleep(3)
+
+            # Verificar que estamos en la página de cotización
+            WebDriverWait(self.driver, 10).until(
+                lambda driver: "cotizador" in driver.current_url.lower() or
+                              "soat" in driver.title.lower()
+            )
+
+            print("  [OK] Navegación completada - En página de cotización\n")
+
+        except Exception as e:
+            print(f"  [ERROR] Error en navegación: {str(e)}")
+            print("  Intentando navegación directa...")
+            self.navigate_to('https://www.lapositiva.com.pe/wps/portal/corporativo/home/cotizador')
+            time.sleep(3)
 
     def select_tipo_vehiculo(self, tipo: str):
         """Selecciona el tipo de vehiculo (auto o moto)."""
         print(f"\n>>> SELECCIONANDO: {tipo}")
-        
-        # Esperar a que el DOM cargue (no esperar networkidle que puede ser infinito)
-        self.page.wait_for_load_state('domcontentloaded')
-        time.sleep(3)
-        
-        # El selector existe pero con force=True para forzar el click
-        selector = 'span.lq-slider-carddetail__info'
-        print(f"  Buscando selector: {selector}...")
-        
-        try:
-            elements = self.page.locator(selector)
-            count = elements.count()
-            print(f"  -> Encontrados {count} elementos")
-            
-            if count > 0:
-                # Usar evaluate para hacer scroll manualmente
-                self.page.evaluate(f"""
-                    () => {{
-                        let elem = document.querySelector('{selector}');
-                        if (elem) {{ elem.scrollIntoView({{ behavior: 'smooth' }}); }}
-                    }}
-                """)
-                time.sleep(1)
-                
-                # Usar force=True para forzar el click aunque no este visible
-                print(f"  [OK] Ejecutando clic forzado...")
-                elements.first.click(force=True)
-                print(f"  [OK] Clic ejecutado correctamente")
-                time.sleep(3)
-                print(f"  5. [OK] Tipo de vehiculo seleccionado\n")
-            else:
-                print("  [WARN] No se encontro el elemento con CSS, probando alternativas...")
-                # Intentar con otros selectores
-                alternativas = [
-                    'div.lq-slider-carddetail',
-                    'img[alt*="auto"]',
-                    'a[data-type="auto"]'
-                ]
-                encontrado = False
-                for alt_selector in alternativas:
-                    alt_elements = self.page.locator(alt_selector)
-                    if alt_elements.count() > 0:
-                        print(f"  [OK] Encontrado con: {alt_selector}")
-                        self.page.evaluate(f"""
-                            () => {{
-                                let elem = document.querySelector('{alt_selector}');
-                                if (elem) {{ elem.scrollIntoView({{ behavior: 'smooth' }}); }}
-                            }}
-                        """)
-                        time.sleep(1)
-                        alt_elements.first.click(force=True)
-                        time.sleep(3)
-                        encontrado = True
-                        break
-                
-                if not encontrado:
-                    print("  [WARN] No se encontro elemento, usando JavaScript...")
-                    # Alternativa: usar JavaScript para hacer click
-                    self.page.evaluate("""
-                        () => {
-                            let elem = document.querySelector('span.lq-slider-carddetail__info');
-                            if (elem) { elem.scrollIntoView(); elem.click(); }
-                        }
-                    """)
-                    time.sleep(3)
-                    print("  [OK] JavaScript click ejecutado\n")
-                else:
-                    print(f"  5. [OK] Tipo de vehiculo seleccionado\n")
-        except Exception as e:
-            print(f"  [ERROR] Error: {str(e)}")
-            print("  Continuando de todas formas...\n")
 
-    def fill_placa(self, placa: str):
-        """Llena el campo de placa del vehiculo."""
-        print(f"\n>>> INGRESANDO PLACA: {placa}")
-        
-        # Esperar a que el DOM cargue
-        self.page.wait_for_load_state('domcontentloaded')
-        time.sleep(1)
-        
-        selector = '#iplaca-home'
-        print(f"  Buscando campo: {selector}...")
-        
         try:
-            # Verificar que el elemento existe
-            elemento = self.page.locator(selector)
-            if elemento.count() > 0:
-                print(f"  [OK] Campo encontrado")
-                
-                # Focus y limpiar
-                elemento.focus()
-                time.sleep(0.3)
-                
-                # Limpiar campo primero
-                elemento.fill('')
-                time.sleep(0.3)
-                
-                # Escribir la placa
-                print(f"  -> Escribiendo: {placa}...")
-                elemento.fill(placa)
-                time.sleep(0.5)
-                
-                # Presionar TAB para activar validación y pasar al siguiente campo
-                print(f"  -> Presionando TAB para validar...")
-                elemento.press('Tab')
-                time.sleep(1)
-                
-                # Verificar lo que se escribio
-                valor = elemento.input_value()
-                print(f"  -> Valor en campo (puede estar autoformajeado): '{valor}'")
-                
-                # Aceptar tanto el valor original como el autoformateado
-                if valor == placa or valor.replace('-', '') == placa.replace('-', ''):
-                    print(f"  [OK] Placa ingresada correctamente\n")
-                else:
-                    print(f"  [WARN] Se ingreso '{valor}' en lugar de '{placa}'\n")
+            # Esperar a que la página cargue completamente
+            WebDriverWait(self.driver, 15).until(
+                lambda driver: driver.execute_script("return document.readyState") == "complete"
+            )
+            time.sleep(3)
+
+            # Hacer scroll hacia abajo para ver los elementos del formulario
+            self.driver.execute_script("window.scrollTo(0, document.body.scrollHeight * 0.6);")
+            time.sleep(2)
+
+            # Buscar elementos de tipo de vehículo con diferentes estrategias
+            elementos = []
+
+            # Estrategia 1: Selector CSS directo
+            try:
+                elementos = self.driver.find_elements(By.CSS_SELECTOR, "span.lq-slider-carddetail__info")
+            except:
+                pass
+
+            # Estrategia 2: Buscar por texto si no se encontraron elementos
+            if not elementos:
+                try:
+                    # Buscar spans que contengan "AUTO" o "MOTO"
+                    elementos = self.driver.find_elements(By.XPATH, "//span[contains(text(), 'AUTO') or contains(text(), 'MOTO')]")
+                except:
+                    pass
+
+            # Estrategia 3: Buscar contenedores más amplios
+            if not elementos:
+                try:
+                    contenedores = self.driver.find_elements(By.CSS_SELECTOR, "div.lq-slider-card, .vehicle-type, .tipo-vehiculo")
+                    for contenedor in contenedores:
+                        spans = contenedor.find_elements(By.TAG_NAME, "span")
+                        elementos.extend(spans)
+                except:
+                    pass
+
+            print(f"  Elementos encontrados: {len(elementos)}")
+
+            # Mostrar información de cada elemento encontrado
+            for i, elem in enumerate(elementos):
+                try:
+                    texto = elem.text.strip()
+                    visible = elem.is_displayed()
+                    print(f"    [{i}] '{texto}' - Visible: {visible}")
+                except:
+                    print(f"    [{i}] [Error al leer elemento]")
+
+            # Buscar el elemento que contiene el tipo especificado
+            target_element = None
+            for elem in elementos:
+                try:
+                    texto_elem = elem.text.strip().upper()
+                    if tipo.upper() in texto_elem or texto_elem in tipo.upper():
+                        target_element = elem
+                        print(f"  [OK] Elemento encontrado: '{elem.text.strip()}'")
+                        break
+                except:
+                    continue
+
+            # Si no se encontró exactamente, intentar con el primer elemento disponible
+            if target_element is None and elementos:
+                print(f"  [WARN] No se encontró elemento para '{tipo}', usando el primero disponible...")
+                target_element = elementos[0]
+
+            if target_element:
+                # Asegurar que el elemento sea visible
+                try:
+                    # Scroll más agresivo si es necesario
+                    self.driver.execute_script("""
+                        arguments[0].scrollIntoView({behavior: 'smooth', block: 'center'});
+                        arguments[0].focus();
+                    """, target_element)
+                    time.sleep(2)
+
+                    # Verificar si está realmente visible
+                    is_visible = self.driver.execute_script("""
+                        var elem = arguments[0];
+                        var rect = elem.getBoundingClientRect();
+                        return rect.top >= 0 && rect.left >= 0 &&
+                               rect.bottom <= (window.innerHeight || document.documentElement.clientHeight) &&
+                               rect.right <= (window.innerWidth || document.documentElement.clientWidth) &&
+                               elem.offsetWidth > 0 && elem.offsetHeight > 0;
+                    """, target_element)
+
+                    if not is_visible:
+                        print("  [WARN] Elemento aún no visible, intentando scroll adicional...")
+                        self.driver.execute_script("window.scrollBy(0, 200);")
+                        time.sleep(1)
+
+                    # Intentar clic con JavaScript primero
+                    try:
+                        self.driver.execute_script("arguments[0].click();", target_element)
+                        print("  [OK] Clic ejecutado con JavaScript")
+                    except Exception as js_error:
+                        print(f"  [WARN] Clic JavaScript falló: {str(js_error)}")
+                        # Intentar clic normal
+                        try:
+                            target_element.click()
+                            print("  [OK] Clic normal ejecutado")
+                        except Exception as normal_error:
+                            print(f"  [WARN] Clic normal falló: {str(normal_error)}")
+                            # Último intento con ActionChains
+                            try:
+                                actions = ActionChains(self.driver)
+                                actions.move_to_element(target_element).pause(1).click().perform()
+                                print("  [OK] Clic con ActionChains ejecutado")
+                            except Exception as action_error:
+                                print(f"  [ERROR] Todos los métodos de clic fallaron: {str(action_error)}")
+                                return
+
+                    time.sleep(3)
+                    print("  [OK] Tipo de vehiculo seleccionado\n")
+
+                except Exception as e:
+                    print(f"  [ERROR] Error al interactuar con el elemento: {str(e)}\n")
             else:
-                print(f"  [WARN] Campo no encontrado")
-                print("  Continuando de todas formas...\n")
+                print("  [ERROR] No se encontraron elementos de tipo de vehículo\n")
+
         except Exception as e:
-            print(f"  [ERROR] Error: {str(e)}")
-            print("  Continuando de todas formas...\n")
+            print(f"  [ERROR] Error general en select_tipo_vehiculo: {str(e)}\n")
+        print(f"\n>>> INGRESANDO PLACA: {placa}")
+
+        try:
+            # Hacer scroll hacia abajo
+            self.driver.execute_script("window.scrollTo(0, document.body.scrollHeight/2);")
+            time.sleep(1)
+
+            # Esperar a que el campo esté presente
+            campo_placa = WebDriverWait(self.driver, 10).until(
+                EC.presence_of_element_located((By.ID, "iplaca-home"))
+            )
+
+            # Hacer scroll al campo
+            self.driver.execute_script("arguments[0].scrollIntoView({behavior: 'smooth', block: 'center'});", campo_placa)
+            time.sleep(1)
+
+            # Limpiar y llenar el campo
+            campo_placa.clear()
+            campo_placa.send_keys(placa)
+
+            print(f"  [OK] Placa '{placa}' ingresada")
+
+            # Presionar TAB para validar
+            campo_placa.send_keys("\t")
+            time.sleep(2)
+
+            # Verificar el valor
+            valor_actual = campo_placa.get_attribute("value")
+            print(f"  -> Valor en campo: '{valor_actual}'")
+
+            print("  [OK] Placa procesada\n")
+
+        except Exception as e:
+            print(f"  [ERROR] Error al ingresar placa: {str(e)}\n")
 
     def accept_policies(self):
         """Acepta las politicas de privacidad y finalidades secundarias."""
         print(f"\n>>> ACEPTANDO POLITICAS")
-        time.sleep(1)
-        
-        # Aceptar Finalidades Secundarias usando JavaScript
-        print("  1. Aceptando Finalidades Secundarias...")
+
         try:
-            resultado = self.page.evaluate("""
-                () => {
-                    let elem = document.querySelector('#flagFinalidadesSecundarias');
-                    if (elem) {
-                        elem.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                        elem.click();
-                        elem.checked = true;
-                        return { encontrado: true, marcado: elem.checked };
-                    }
-                    return { encontrado: false, marcado: false };
-                }
-            """)
+            # Hacer scroll hacia abajo
+            self.driver.execute_script("window.scrollTo(0, document.body.scrollHeight);")
             time.sleep(1)
-            
-            if resultado['encontrado']:
-                if resultado['marcado']:
-                    print(f"  [OK] Finalidades Secundarias MARCADAS (checked={resultado['marcado']})")
+
+            # Aceptar Finalidades Secundarias
+            print("  1. Aceptando Finalidades Secundarias...")
+            try:
+                fs_checkbox = WebDriverWait(self.driver, 5).until(
+                    EC.element_to_be_clickable((By.ID, "flagFinalidadesSecundarias"))
+                )
+                if not fs_checkbox.is_selected():
+                    fs_checkbox.click()
+                    print("  [OK] Finalidades Secundarias marcadas")
                 else:
-                    print(f"  [WARN] Elemento encontrado pero no marcado")
-            else:
-                print("  [WARN] Checkbox #flagFinalidadesSecundarias no encontrado")
-        except Exception as e:
-            print(f"  [ERROR] Error: {e}")
-        
-        # Aceptar Politicas de Privacidad usando JavaScript
-        print("  2. Aceptando Politicas de Privacidad...")
-        try:
-            resultado = self.page.evaluate("""
-                () => {
-                    let elem = document.querySelector('#flagPoliticaPrivacidad');
-                    if (elem) {
-                        elem.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                        elem.click();
-                        elem.checked = true;
-                        return { encontrado: true, marcado: elem.checked };
-                    }
-                    return { encontrado: false, marcado: false };
-                }
-            """)
+                    print("  [OK] Finalidades Secundarias ya estaban marcadas")
+            except Exception as e:
+                print(f"  [WARN] Error en Finalidades Secundarias: {str(e)}")
+
+            # Aceptar Politicas de Privacidad
+            print("  2. Aceptando Politicas de Privacidad...")
+            try:
+                pp_checkbox = WebDriverWait(self.driver, 5).until(
+                    EC.element_to_be_clickable((By.ID, "flagPoliticaPrivacidad"))
+                )
+                if not pp_checkbox.is_selected():
+                    pp_checkbox.click()
+                    print("  [OK] Politicas de Privacidad marcadas")
+                else:
+                    print("  [OK] Politicas de Privacidad ya estaban marcadas")
+            except Exception as e:
+                print(f"  [WARN] Error en Politicas de Privacidad: {str(e)}")
+
             time.sleep(1)
-            
-            if resultado['encontrado']:
-                if resultado['marcado']:
-                    print(f"  [OK] Politicas de Privacidad MARCADAS (checked={resultado['marcado']})")
-                else:
-                    print(f"  [WARN] Elemento encontrado pero no marcado")
-            else:
-                print("  [WARN] Checkbox #flagPoliticaPrivacidad no encontrado")
+            print("  3. [OK] Politicas procesadas\n")
+
         except Exception as e:
-            print(f"  [ERROR] Error: {e}")
-        
-        time.sleep(1)
-        print("  3. [OK] Ambos checkboxes aceptados\n")
+            print(f"  [ERROR] Error general en politicas: {str(e)}\n")
 
     def cotizar(self):
-        """Clic en el boton para cotizar usando JavaScript."""
+        """Clic en el boton para cotizar."""
         print(f"\n>>> COTIZANDO")
-        time.sleep(1)
-        
-        selector = '#btngo'
-        print(f"  Buscando boton: {selector}...")
-        
-        try:
-            resultado = self.page.evaluate("""
-                () => {
-                    let btn = document.querySelector('#btngo');
-                    if (btn) {
-                        btn.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                        btn.click();
-                        return { encontrado: true, clicked: true };
-                    }
-                    return { encontrado: false, clicked: false };
-                }
-            """)
-            
-            if resultado['encontrado']:
-                if resultado['clicked']:
-                    print("  [OK] Boton encontrado")
-                    print("  [OK] CLIC EN BOTON EJECUTADO - Cotizacion iniciada")
-                    time.sleep(4)
-                    print("  [OK] Cotizacion procesada\n")
-                else:
-                    print("  [WARN] Boton encontrado pero no se ejecuto clic")
-            else:
-                print("  [WARN] Boton #btngo no encontrado")
-                print("  Continuando de todas formas...\n")
-        except Exception as e:
-            print(f"  [ERROR] Error: {str(e)}")
-            print("  Continuando de todas formas...\n")
 
-    def get_resultado(self) -> str:
-        """Obtiene el resultado de la cotizacion."""
+        try:
+            # Hacer scroll hacia abajo para asegurar que el botón sea visible
+            self.driver.execute_script("window.scrollTo(0, document.body.scrollHeight);")
+            time.sleep(2)
+
+            # Buscar el botón con diferentes estrategias
+            button = None
+
+            # Estrategia 1: ID directo
+            try:
+                button = WebDriverWait(self.driver, 5).until(
+                    EC.element_to_be_clickable((By.ID, "btngo"))
+                )
+                print("  [OK] Botón encontrado por ID")
+            except:
+                # Estrategia 2: Buscar por texto
+                try:
+                    button = WebDriverWait(self.driver, 5).until(
+                        EC.element_to_be_clickable((By.XPATH, "//button[contains(text(), 'Cotizar') or contains(text(), 'SOAT') or contains(text(), 'Vamos')]"))
+                    )
+                    print("  [OK] Botón encontrado por texto")
+                except:
+                    # Estrategia 3: Buscar por clase o atributo
+                    try:
+                        button = WebDriverWait(self.driver, 5).until(
+                            EC.element_to_be_clickable((By.CSS_SELECTOR, "[id*='btn'], .btn-cotizar, .cotizar-btn"))
+                        )
+                        print("  [OK] Botón encontrado por clase")
+                    except:
+                        print("  [ERROR] No se pudo encontrar el botón de cotización")
+                        return
+
+            # Verificar si el botón está deshabilitado
+            is_disabled = button.get_attribute("disabled") is not None
+            button_text = button.text.strip() or button.get_attribute("value") or "Sin texto"
+
+            print(f"  Botón encontrado: '{button_text}' - Deshabilitado: {is_disabled}")
+
+            if is_disabled:
+                print("  [ERROR] El botón está DESHABILITADO - Verificando prerrequisitos...")
+
+                # Verificar estado de todos los campos requeridos
+                self._check_prerequisites()
+                return
+
+            # Hacer scroll al botón y esperar
+            self.driver.execute_script("arguments[0].scrollIntoView({behavior: 'smooth', block: 'center'});", button)
+            time.sleep(2)
+
+            # Verificar nuevamente que no esté deshabilitado después del scroll
+            is_disabled_after_scroll = button.get_attribute("disabled") is not None
+            if is_disabled_after_scroll:
+                print("  [ERROR] El botón sigue deshabilitado después del scroll")
+                self._check_prerequisites()
+                return
+
+            # Intentar hacer clic
+            try:
+                button.click()
+                print("  [OK] Clic en botón de cotización ejecutado")
+            except Exception as click_error:
+                print(f"  [WARN] Clic normal falló: {str(click_error)}")
+                # Intentar con JavaScript
+                try:
+                    self.driver.execute_script("arguments[0].click();", button)
+                    print("  [OK] Clic con JavaScript ejecutado")
+                except Exception as js_error:
+                    print(f"  [ERROR] Clic con JavaScript también falló: {str(js_error)}")
+                    return
+
+            time.sleep(5)  # Esperar más tiempo para que procese la cotización
+            print("  [OK] Cotización iniciada\n")
+
+        except Exception as e:
+            print(f"  [ERROR] Error general en cotizar: {str(e)}")
+
+    def _check_prerequisites(self):
+        """Verifica que todos los prerrequisitos estén completos."""
+        print("  [INFO] Verificando prerrequisitos...")
+
+        try:
+            # Verificar tipo de vehículo
+            vehiculo_elements = self.driver.find_elements(By.CSS_SELECTOR, "span.lq-slider-carddetail__info")
+            vehiculo_selected = any(elem.is_displayed() for elem in vehiculo_elements)
+            print(f"    ✓ Tipo de vehículo visible: {vehiculo_selected}")
+
+            # Verificar placa
+            try:
+                placa_field = self.driver.find_element(By.ID, "iplaca-home")
+                placa_value = placa_field.get_attribute("value") or ""
+                print(f"    ✓ Placa ingresada: '{placa_value}' (longitud: {len(placa_value)})")
+            except:
+                print("    ✗ Campo de placa no encontrado")
+
+            # Verificar checkboxes
+            try:
+                fs_checkbox = self.driver.find_element(By.ID, "flagFinalidadesSecundarias")
+                pp_checkbox = self.driver.find_element(By.ID, "flagPoliticaPrivacidad")
+                fs_checked = fs_checkbox.is_selected()
+                pp_checked = pp_checkbox.is_selected()
+                print(f"    ✓ Finalidades Secundarias: {fs_checked}")
+                print(f"    ✓ Política Privacidad: {pp_checked}")
+            except:
+                print("    ✗ Checkboxes no encontrados")
+
+        except Exception as e:
+            print(f"    [ERROR] Error al verificar prerrequisitos: {str(e)}")
         print(f"\n>>> OBTENIENDO RESULTADO")
-        time.sleep(2)
-        
-        print("  1. Leyendo contenido de pagina...")
-        resultado = self.page.text_content('body')
-        
-        if 'S/' in resultado:
-            print("  2. [OK] Precio encontrado (contiene 'S/')")
-            return "Cotizacion realizada exitosamente con precio en Soles"
-        else:
-            print("  2. [OK] Cotizacion completada")
-            return "Cotizacion completada"
+
+        try:
+            time.sleep(3)
+            # Buscar en el contenido de la página
+            page_text = self.driver.find_element(By.TAG_NAME, "body").text
+
+            if "S/" in page_text:
+                print("  [OK] Precio encontrado en Soles")
+                return "Cotizacion realizada exitosamente con precio en Soles"
+            else:
+                print("  [OK] Cotizacion completada")
+                return "Cotizacion completada"
+
+        except Exception as e:
+            print(f"  [ERROR] Error al obtener resultado: {str(e)}")
+            return "Error al obtener resultado"

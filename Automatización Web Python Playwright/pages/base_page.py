@@ -1,4 +1,6 @@
-from playwright.sync_api import Page
+from selenium.webdriver.support.ui import WebDriverWait
+from selenium.webdriver.support import expected_conditions as EC
+from selenium.webdriver.common.by import By
 
 class BasePage:
     """
@@ -6,13 +8,15 @@ class BasePage:
     Proporciona métodos comunes para interactuar con páginas web.
     """
 
-    def __init__(self, page: Page):
-        self.page = page
+    def __init__(self, driver):
+        self.driver = driver
 
     def navigate_to(self, url: str):
         """Navega a una URL específica."""
-        self.page.goto(url)
+        self.driver.get(url)
 
-    def wait_for_element(self, selector: str):
+    def wait_for_element(self, selector: str, by=By.CSS_SELECTOR):
         """Espera a que un elemento esté visible."""
-        self.page.wait_for_selector(selector)
+        WebDriverWait(self.driver, 10).until(
+            EC.visibility_of_element_located((by, selector))
+        )
