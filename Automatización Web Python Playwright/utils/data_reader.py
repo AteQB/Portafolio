@@ -20,7 +20,7 @@ class DataReader:
         """
         Lee los datos de cotización de SOAT desde la hoja 'SOAT'.
         Objetivo: Extraer filas de datos para parametrizar pruebas.
-        Cada fila debe tener columnas: placa, tipo_vehiculo, expected_result (opcional).
+        Cada fila debe tener columnas: placa (string, ej. "ABC-123"), tipo_vehiculo (string, "auto" o "moto"), expected_result (string opcional).
         :return: Lista de diccionarios con los datos.
         """
         workbook = openpyxl.load_workbook(self.file_path)
