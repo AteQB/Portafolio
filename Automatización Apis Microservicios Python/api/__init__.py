@@ -1,0 +1,1 @@
+# Módulo API para automatización de pruebas

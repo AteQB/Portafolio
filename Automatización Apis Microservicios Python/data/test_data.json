@@ -1,0 +1,30 @@
+{
+  "users": [
+    {
+      "id": 1,
+      "name": "Juan Pérez",
+      "email": "juan@example.com"
+    },
+    {
+      "id": 2,
+      "name": "María García",
+      "email": "maria@example.com"
+    }
+  ],
+  "posts": [
+    {
+      "id": 1,
+      "title": "Primer post",
+      "content": "Contenido del primer post",
+      "user_id": 1
+    }
+  ],
+  "new_user": {
+    "name": "Carlos López",
+    "email": "carlos@example.com"
+  },
+  "update_user": {
+    "name": "Carlos López Actualizado",
+    "email": "carlos.updated@example.com"
+  }
+}
