@@ -8,79 +8,120 @@ import time
 class SoatPage(BasePage):
     """Page Object para la cotizacion de SOAT."""
 
+    # ============================================================
+    # SELECTORES REALES - La Positiva Cotizador SOAT
+    # Confirmados del DOM - marzo 2025
+    # ============================================================
+
+    # Campo de placa
+    CAMPO_PLACA = (By.ID, "iplaca-home")
+
+    # Error campo placa
+    ERROR_PLACA = (By.ID, "imsg-error")
+
+    # Checkbox Finalidades Secundarias
+    CHK_FINALIDADES = (By.ID, "flagFinalidadesSecundarias")
+
+    # Checkbox Políticas de Privacidad
+    CHK_PRIVACIDAD = (By.ID, "flagPoliticaPrivacidad")
+
+    # Error Políticas de Privacidad
+    ERROR_PRIVACIDAD = (By.ID, "imsg-error-privacidad")
+
+    # Botón "Vamos por tu SOAT" (es un <a> no un <button>)
+    BTN_COTIZAR = (By.ID, "btngo")
+
+    # Card Autos
+    CARD_AUTO = (By.CSS_SELECTOR, ".lq-slide__card-item:first-child")
+
+    # Card Motos
+    CARD_MOTO = (By.CSS_SELECTOR, ".lq-slide__card-item:last-child")
+
     def navigate_to_home_and_cotizar(self):
-        """Navega a la página principal y hace clic en 'Cotizar SOAT'."""
+        """Navega a la página principal y hace clic en 'Cotizar SOAT'.
+
+        Para reducir el tiempo de espera se intenta primero ir directo al
+        cotizador. Si esa navegación falla se recurre al flujo tradicional
+        desde el home y se acortan esperas innecesarias.
+        """
         print(f"\n>>> NAVEGANDO AL HOME Y COTIZANDO")
 
+        cotizador_url = 'https://www.lapositiva.com.pe/wps/portal/corporativo/home/cotizador'
+        # Intento rápido directo al cotizador
         try:
-            # Navegar a la página principal
-            print("  1. Navegando a la página principal...")
-            self.navigate_to('https://www.lapositiva.com.pe/')
-            time.sleep(3)
-
-            # Esperar a que cargue completamente
-            WebDriverWait(self.driver, 15).until(
-                lambda driver: driver.execute_script("return document.readyState") == "complete"
+            print("  1. Intentando acceso directo al cotizador...")
+            self.navigate_to(cotizador_url)
+            # presencia del campo placa como indicador de carga correcta
+            WebDriverWait(self.driver, 5).until(
+                EC.presence_of_element_located(self.CAMPO_PLACA)
             )
-            time.sleep(2)
+            print("  [OK] Navegación directa al cotizador exitosa\n")
+            return
+        except Exception:
+            print("  [INFO] Acceso directo falló, usando flujo desde home...")
 
-            # Buscar y hacer clic en el botón "Cotizar SOAT"
-            print("  2. Buscando botón 'Cotizar SOAT'...")
+        # Flujo tradicional desde la página principal con tiempos reducidos
+        try:
+            print("  2. Navegando a la página principal...")
+            self.navigate_to('https://www.lapositiva.com.pe/')
+            WebDriverWait(self.driver, 10).until(
+                lambda d: d.execute_script("return document.readyState") == "complete"
+            )
 
-            # Intentar diferentes selectores para el botón
+            print("  3. Buscando botón 'Cotizar SOAT'...")
             button_selectors = [
                 "a[href*='cotizador']",
-                "a:contains('SOAT')",
+                "a[href*='soat']",
                 "[data-target*='soat']",
                 ".soat-button",
-                "button:contains('SOAT')"
+                "a:contains('SOAT')",
+                "button:contains('SOAT')",
+                "a:contains('Cotizar')",
+                "button:contains('Cotizar')"
             ]
 
             button_found = False
             for selector in button_selectors:
                 try:
                     if ":contains" in selector:
-                        # Para selectores que contienen texto
                         text = selector.split("'")[1]
-                        button = WebDriverWait(self.driver, 5).until(
+                        button = WebDriverWait(self.driver, 3).until(
                             EC.element_to_be_clickable((By.XPATH, f"//*[contains(text(), '{text}')]"))
                         )
                     else:
-                        button = WebDriverWait(self.driver, 5).until(
+                        button = WebDriverWait(self.driver, 3).until(
                             EC.element_to_be_clickable((By.CSS_SELECTOR, selector))
                         )
 
-                    # Hacer scroll al botón
-                    self.driver.execute_script("arguments[0].scrollIntoView({behavior: 'smooth', block: 'center'});", button)
-                    time.sleep(1)
-
+                    self.driver.execute_script(
+                        "arguments[0].scrollIntoView({behavior: 'smooth', block: 'center'});",
+                        button
+                    )
                     button.click()
                     print(f"  [OK] Botón encontrado con selector: {selector}")
                     button_found = True
                     break
-
                 except:
                     continue
 
             if not button_found:
-                print("  [WARN] No se encontró botón específico, intentando navegación directa...")
-                # Si no encuentra el botón, ir directamente a la página de cotización
-                self.navigate_to('https://www.lapositiva.com.pe/wps/portal/corporativo/home/cotizador')
-                time.sleep(3)
+                print("  [WARN] No se encontró botón específico, navegando directo al cotizador...")
+                self.navigate_to(cotizador_url)
 
-            # Verificar que estamos en la página de cotización
             WebDriverWait(self.driver, 10).until(
-                lambda driver: "cotizador" in driver.current_url.lower() or
-                              "soat" in driver.title.lower()
+                lambda d: "cotizador" in d.current_url.lower() or
+                          "soat" in d.title.lower()
             )
-
             print("  [OK] Navegación completada - En página de cotización\n")
 
         except Exception as e:
-            print(f"  [ERROR] Error en navegación: {str(e)}")
-            print("  Intentando navegación directa...")
-            self.navigate_to('https://www.lapositiva.com.pe/wps/portal/corporativo/home/cotizador')
-            time.sleep(3)
+            print(f"  [ERROR] Error en navegación secundaria: {e}")
+            print("  Reintentando con URL directa...")
+            self.navigate_to(cotizador_url)
+            WebDriverWait(self.driver, 5).until(
+                EC.presence_of_element_located(self.CAMPO_PLACA)
+            )
+            print("  [OK] Navegación forzada al cotizador\n")
 
     def select_tipo_vehiculo(self, tipo: str):
         """Selecciona el tipo de vehiculo (auto o moto)."""
@@ -97,117 +138,71 @@ class SoatPage(BasePage):
             self.driver.execute_script("window.scrollTo(0, document.body.scrollHeight * 0.6);")
             time.sleep(2)
 
-            # Buscar elementos de tipo de vehículo con diferentes estrategias
-            elementos = []
-
-            # Estrategia 1: Selector CSS directo
-            try:
-                elementos = self.driver.find_elements(By.CSS_SELECTOR, "span.lq-slider-carddetail__info")
-            except:
-                pass
-
-            # Estrategia 2: Buscar por texto si no se encontraron elementos
-            if not elementos:
-                try:
-                    # Buscar spans que contengan "AUTO" o "MOTO"
-                    elementos = self.driver.find_elements(By.XPATH, "//span[contains(text(), 'AUTO') or contains(text(), 'MOTO')]")
-                except:
-                    pass
-
-            # Estrategia 3: Buscar contenedores más amplios
-            if not elementos:
-                try:
-                    contenedores = self.driver.find_elements(By.CSS_SELECTOR, "div.lq-slider-card, .vehicle-type, .tipo-vehiculo")
-                    for contenedor in contenedores:
-                        spans = contenedor.find_elements(By.TAG_NAME, "span")
-                        elementos.extend(spans)
-                except:
-                    pass
-
-            print(f"  Elementos encontrados: {len(elementos)}")
-
-            # Mostrar información de cada elemento encontrado
-            for i, elem in enumerate(elementos):
-                try:
-                    texto = elem.text.strip()
-                    visible = elem.is_displayed()
-                    print(f"    [{i}] '{texto}' - Visible: {visible}")
-                except:
-                    print(f"    [{i}] [Error al leer elemento]")
-
-            # Buscar el elemento que contiene el tipo especificado
-            target_element = None
-            for elem in elementos:
-                try:
-                    texto_elem = elem.text.strip().upper()
-                    if tipo.upper() in texto_elem or texto_elem in tipo.upper():
-                        target_element = elem
-                        print(f"  [OK] Elemento encontrado: '{elem.text.strip()}'")
-                        break
-                except:
-                    continue
-
-            # Si no se encontró exactamente, intentar con el primer elemento disponible
-            if target_element is None and elementos:
-                print(f"  [WARN] No se encontró elemento para '{tipo}', usando el primero disponible...")
-                target_element = elementos[0]
-
-            if target_element:
-                # Asegurar que el elemento sea visible
-                try:
-                    # Scroll más agresivo si es necesario
-                    self.driver.execute_script("""
-                        arguments[0].scrollIntoView({behavior: 'smooth', block: 'center'});
-                        arguments[0].focus();
-                    """, target_element)
-                    time.sleep(2)
-
-                    # Verificar si está realmente visible
-                    is_visible = self.driver.execute_script("""
-                        var elem = arguments[0];
-                        var rect = elem.getBoundingClientRect();
-                        return rect.top >= 0 && rect.left >= 0 &&
-                               rect.bottom <= (window.innerHeight || document.documentElement.clientHeight) &&
-                               rect.right <= (window.innerWidth || document.documentElement.clientWidth) &&
-                               elem.offsetWidth > 0 && elem.offsetHeight > 0;
-                    """, target_element)
-
-                    if not is_visible:
-                        print("  [WARN] Elemento aún no visible, intentando scroll adicional...")
-                        self.driver.execute_script("window.scrollBy(0, 200);")
-                        time.sleep(1)
-
-                    # Intentar clic con JavaScript primero
-                    try:
-                        self.driver.execute_script("arguments[0].click();", target_element)
-                        print("  [OK] Clic ejecutado con JavaScript")
-                    except Exception as js_error:
-                        print(f"  [WARN] Clic JavaScript falló: {str(js_error)}")
-                        # Intentar clic normal
-                        try:
-                            target_element.click()
-                            print("  [OK] Clic normal ejecutado")
-                        except Exception as normal_error:
-                            print(f"  [WARN] Clic normal falló: {str(normal_error)}")
-                            # Último intento con ActionChains
-                            try:
-                                actions = ActionChains(self.driver)
-                                actions.move_to_element(target_element).pause(1).click().perform()
-                                print("  [OK] Clic con ActionChains ejecutado")
-                            except Exception as action_error:
-                                print(f"  [ERROR] Todos los métodos de clic fallaron: {str(action_error)}")
-                                return
-
-                    time.sleep(3)
-                    print("  [OK] Tipo de vehiculo seleccionado\n")
-
-                except Exception as e:
-                    print(f"  [ERROR] Error al interactuar con el elemento: {str(e)}\n")
+            # Seleccionar el selector apropiado basado en el tipo
+            if tipo.lower() == "auto":
+                selector = self.CARD_AUTO
+                tipo_display = "AUTO"
+            elif tipo.lower() == "moto":
+                selector = self.CARD_MOTO
+                tipo_display = "MOTO"
             else:
-                print("  [ERROR] No se encontraron elementos de tipo de vehículo\n")
+                print(f"  [ERROR] Tipo de vehículo no reconocido: {tipo}")
+                return
+
+            print(f"  Buscando card para {tipo_display}...")
+
+            # Esperar a que el elemento esté presente y clickeable
+            card_element = WebDriverWait(self.driver, 10).until(
+                EC.element_to_be_clickable(selector)
+            )
+
+            # Hacer scroll al elemento
+            self.driver.execute_script("arguments[0].scrollIntoView({behavior: 'smooth', block: 'center'});", card_element)
+            time.sleep(2)
+
+            # Verificar que sea visible
+            is_visible = self.driver.execute_script("""
+                var elem = arguments[0];
+                var rect = elem.getBoundingClientRect();
+                return rect.top >= 0 && rect.left >= 0 &&
+                       rect.bottom <= (window.innerHeight || document.documentElement.clientHeight) &&
+                       rect.right <= (window.innerWidth || document.documentElement.clientWidth) &&
+                       elem.offsetWidth > 0 && elem.offsetHeight > 0;
+            """, card_element)
+
+            if not is_visible:
+                print("  [WARN] Elemento no completamente visible, intentando scroll adicional...")
+                self.driver.execute_script("window.scrollBy(0, 200);")
+                time.sleep(1)
+
+            # Intentar clic con JavaScript primero
+            try:
+                self.driver.execute_script("arguments[0].click();", card_element)
+                print(f"  [OK] Card {tipo_display} seleccionado con JavaScript")
+            except Exception as js_error:
+                print(f"  [WARN] Clic JavaScript falló: {str(js_error)}")
+                # Intentar clic normal
+                try:
+                    card_element.click()
+                    print(f"  [OK] Card {tipo_display} seleccionado con clic normal")
+                except Exception as normal_error:
+                    print(f"  [WARN] Clic normal falló: {str(normal_error)}")
+                    # Último intento con ActionChains
+                    try:
+                        actions = ActionChains(self.driver)
+                        actions.move_to_element(card_element).pause(1).click().perform()
+                        print(f"  [OK] Card {tipo_display} seleccionado con ActionChains")
+                    except Exception as action_error:
+                        print(f"  [ERROR] Todos los métodos de clic fallaron: {str(action_error)}")
+                        return
+
+            time.sleep(3)
+            print("  [OK] Tipo de vehiculo seleccionado\n")
 
         except Exception as e:
             print(f"  [ERROR] Error general en select_tipo_vehiculo: {str(e)}\n")
+    def fill_placa(self, placa: str):
+        """Ingresa la placa del vehiculo."""
         print(f"\n>>> INGRESANDO PLACA: {placa}")
 
         try:
@@ -217,7 +212,7 @@ class SoatPage(BasePage):
 
             # Esperar a que el campo esté presente
             campo_placa = WebDriverWait(self.driver, 10).until(
-                EC.presence_of_element_located((By.ID, "iplaca-home"))
+                EC.presence_of_element_located(self.CAMPO_PLACA)
             )
 
             # Hacer scroll al campo
@@ -238,6 +233,15 @@ class SoatPage(BasePage):
             valor_actual = campo_placa.get_attribute("value")
             print(f"  -> Valor en campo: '{valor_actual}'")
 
+            # Verificar si hay errores
+            try:
+                error_element = self.driver.find_element(*self.ERROR_PLACA)
+                if error_element.is_displayed():
+                    error_text = error_element.text.strip()
+                    print(f"  [WARN] Error en placa: {error_text}")
+            except:
+                print("  [OK] No hay errores de placa")
+
             print("  [OK] Placa procesada\n")
 
         except Exception as e:
@@ -256,7 +260,7 @@ class SoatPage(BasePage):
             print("  1. Aceptando Finalidades Secundarias...")
             try:
                 fs_checkbox = WebDriverWait(self.driver, 5).until(
-                    EC.element_to_be_clickable((By.ID, "flagFinalidadesSecundarias"))
+                    EC.element_to_be_clickable(self.CHK_FINALIDADES)
                 )
                 if not fs_checkbox.is_selected():
                     fs_checkbox.click()
@@ -270,7 +274,7 @@ class SoatPage(BasePage):
             print("  2. Aceptando Politicas de Privacidad...")
             try:
                 pp_checkbox = WebDriverWait(self.driver, 5).until(
-                    EC.element_to_be_clickable((By.ID, "flagPoliticaPrivacidad"))
+                    EC.element_to_be_clickable(self.CHK_PRIVACIDAD)
                 )
                 if not pp_checkbox.is_selected():
                     pp_checkbox.click()
@@ -295,32 +299,11 @@ class SoatPage(BasePage):
             self.driver.execute_script("window.scrollTo(0, document.body.scrollHeight);")
             time.sleep(2)
 
-            # Buscar el botón con diferentes estrategias
-            button = None
-
-            # Estrategia 1: ID directo
-            try:
-                button = WebDriverWait(self.driver, 5).until(
-                    EC.element_to_be_clickable((By.ID, "btngo"))
-                )
-                print("  [OK] Botón encontrado por ID")
-            except:
-                # Estrategia 2: Buscar por texto
-                try:
-                    button = WebDriverWait(self.driver, 5).until(
-                        EC.element_to_be_clickable((By.XPATH, "//button[contains(text(), 'Cotizar') or contains(text(), 'SOAT') or contains(text(), 'Vamos')]"))
-                    )
-                    print("  [OK] Botón encontrado por texto")
-                except:
-                    # Estrategia 3: Buscar por clase o atributo
-                    try:
-                        button = WebDriverWait(self.driver, 5).until(
-                            EC.element_to_be_clickable((By.CSS_SELECTOR, "[id*='btn'], .btn-cotizar, .cotizar-btn"))
-                        )
-                        print("  [OK] Botón encontrado por clase")
-                    except:
-                        print("  [ERROR] No se pudo encontrar el botón de cotización")
-                        return
+            # Buscar el botón usando el selector específico
+            button = WebDriverWait(self.driver, 10).until(
+                EC.element_to_be_clickable(self.BTN_COTIZAR)
+            )
+            print("  [OK] Botón encontrado por ID")
 
             # Verificar si el botón está deshabilitado
             is_disabled = button.get_attribute("disabled") is not None
@@ -371,32 +354,63 @@ class SoatPage(BasePage):
         print("  [INFO] Verificando prerrequisitos...")
 
         try:
-            # Verificar tipo de vehículo
-            vehiculo_elements = self.driver.find_elements(By.CSS_SELECTOR, "span.lq-slider-carddetail__info")
-            vehiculo_selected = any(elem.is_displayed() for elem in vehiculo_elements)
-            print(f"    ✓ Tipo de vehículo visible: {vehiculo_selected}")
+            # Verificar tipo de vehículo (al menos uno debe estar seleccionado)
+            try:
+                auto_card = self.driver.find_element(*self.CARD_AUTO)
+                moto_card = self.driver.find_element(*self.CARD_MOTO)
+                # Verificar si alguno tiene clase de selección o similar
+                auto_selected = "selected" in auto_card.get_attribute("class") or auto_card.get_attribute("aria-selected") == "true"
+                moto_selected = "selected" in moto_card.get_attribute("class") or moto_card.get_attribute("aria-selected") == "true"
+                vehiculo_selected = auto_selected or moto_selected
+                print(f"    ✓ Tipo de vehículo seleccionado: {vehiculo_selected}")
+            except:
+                print("    ✗ Cards de vehículo no encontrados")
 
             # Verificar placa
             try:
-                placa_field = self.driver.find_element(By.ID, "iplaca-home")
+                placa_field = self.driver.find_element(*self.CAMPO_PLACA)
                 placa_value = placa_field.get_attribute("value") or ""
                 print(f"    ✓ Placa ingresada: '{placa_value}' (longitud: {len(placa_value)})")
+
+                # Verificar errores de placa
+                try:
+                    error_placa = self.driver.find_element(*self.ERROR_PLACA)
+                    if error_placa.is_displayed():
+                        print(f"    ✗ Error de placa: {error_placa.text.strip()}")
+                    else:
+                        print("    ✓ No hay errores de placa")
+                except:
+                    print("    ✓ No hay errores de placa")
+
             except:
                 print("    ✗ Campo de placa no encontrado")
 
             # Verificar checkboxes
             try:
-                fs_checkbox = self.driver.find_element(By.ID, "flagFinalidadesSecundarias")
-                pp_checkbox = self.driver.find_element(By.ID, "flagPoliticaPrivacidad")
+                fs_checkbox = self.driver.find_element(*self.CHK_FINALIDADES)
+                pp_checkbox = self.driver.find_element(*self.CHK_PRIVACIDAD)
                 fs_checked = fs_checkbox.is_selected()
                 pp_checked = pp_checkbox.is_selected()
                 print(f"    ✓ Finalidades Secundarias: {fs_checked}")
                 print(f"    ✓ Política Privacidad: {pp_checked}")
+
+                # Verificar errores de privacidad
+                if not pp_checked:
+                    try:
+                        error_privacidad = self.driver.find_element(*self.ERROR_PRIVACIDAD)
+                        if error_privacidad.is_displayed():
+                            print(f"    ✗ Error de privacidad: {error_privacidad.text.strip()}")
+                    except:
+                        pass
+
             except:
                 print("    ✗ Checkboxes no encontrados")
 
         except Exception as e:
             print(f"    [ERROR] Error al verificar prerrequisitos: {str(e)}")
+
+    def get_resultado(self):
+        """Obtiene el resultado de la cotización."""
         print(f"\n>>> OBTENIENDO RESULTADO")
 
         try:

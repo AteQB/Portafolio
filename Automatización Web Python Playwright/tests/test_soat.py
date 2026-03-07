@@ -11,7 +11,8 @@ import time
 @pytest.fixture(scope="function")
 def driver():
     """Fixture para crear y configurar el driver de Selenium con Chrome."""
-    service = Service(ChromeDriverManager().install())
+    # Usar ruta específica del chromedriver que funciona
+    service = Service("C:\\Users\\quint\\.wdm\\drivers\\chromedriver\\win64\\145.0.7632.117\\chromedriver-win32\\chromedriver.exe")
     options = webdriver.ChromeOptions()
     options.add_argument("--start-maximized")
     options.add_argument("--disable-blink-features=AutomationControlled")
@@ -64,22 +65,4 @@ def test_cotizar_soat_bng018(driver):
     print(f"[OK] Resultado obtenido: {resultado}")
 
     print("\n=== COTIZACION COMPLETADA EXITOSAMENTE ===")
-    assert len(resultado) > 0
-
-    # Paso 4: Aceptar políticas
-    print("\nPASO 4: Aceptando políticas de privacidad...")
-    soat.accept_policies()
-    print("[OK] Políticas aceptadas")
-
-    # Paso 5: Presionar botón cotizar
-    print("\nPASO 5: Presionando botón cotizar...")
-    soat.cotizar()
-    print("[OK] Boton cotizar presionado")
-
-    # Paso 6: Obtener resultado
-    print("\nPASO 6: Obteniendo resultado...")
-    resultado = soat.get_resultado()
-    print(f"[OK] Resultado obtenido: {resultado}")
-
-    print("\n=== COTIZACION COMPLETADA ===")
     assert len(resultado) > 0
