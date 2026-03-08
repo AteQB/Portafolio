@@ -4,6 +4,7 @@ from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.common.action_chains import ActionChains
 import time
+import os
 
 class SoatPage(BasePage):
     """Page Object para la cotizacion de SOAT."""
@@ -37,91 +38,36 @@ class SoatPage(BasePage):
     # Card Motos
     CARD_MOTO = (By.CSS_SELECTOR, ".lq-slide__card-item:last-child")
 
-    def navigate_to_home_and_cotizar(self):
-        """Navega a la página principal y hace clic en 'Cotizar SOAT'.
+    def __init__(self, driver, screenshots_dir="screenshots"):
+        super().__init__(driver)
+        self.screenshots_dir = screenshots_dir
+        os.makedirs(self.screenshots_dir, exist_ok=True)
+        self.screenshot_count = 0
 
-        Para reducir el tiempo de espera se intenta primero ir directo al
-        cotizador. Si esa navegación falla se recurre al flujo tradicional
-        desde el home y se acortan esperas innecesarias.
-        """
-        print(f"\n>>> NAVEGANDO AL HOME Y COTIZANDO")
+    def take_screenshot(self, step_name):
+        """Toma una captura de pantalla y la guarda con el nombre del paso."""
+        self.screenshot_count += 1
+        filename = f"{self.screenshot_count:02d}_{step_name}.png"
+        filepath = os.path.join(self.screenshots_dir, filename)
+        self.driver.save_screenshot(filepath)
+        print(f"  [EVIDENCIA] Screenshot guardado: {filepath}")
+
+    def navigate_to_cotizador(self):
+        """Navega directamente al cotizador SOAT."""
+        print(f"\n>>> NAVEGANDO DIRECTO AL COTIZADOR")
 
         cotizador_url = 'https://www.lapositiva.com.pe/wps/portal/corporativo/home/cotizador'
-        # Intento rápido directo al cotizador
         try:
-            print("  1. Intentando acceso directo al cotizador...")
+            print("  Navegando al cotizador...")
             self.navigate_to(cotizador_url)
-            # presencia del campo placa como indicador de carga correcta
-            WebDriverWait(self.driver, 5).until(
+            WebDriverWait(self.driver, 10).until(
                 EC.presence_of_element_located(self.CAMPO_PLACA)
             )
-            print("  [OK] Navegación directa al cotizador exitosa\n")
-            return
-        except Exception:
-            print("  [INFO] Acceso directo falló, usando flujo desde home...")
-
-        # Flujo tradicional desde la página principal con tiempos reducidos
-        try:
-            print("  2. Navegando a la página principal...")
-            self.navigate_to('https://www.lapositiva.com.pe/')
-            WebDriverWait(self.driver, 10).until(
-                lambda d: d.execute_script("return document.readyState") == "complete"
-            )
-
-            print("  3. Buscando botón 'Cotizar SOAT'...")
-            button_selectors = [
-                "a[href*='cotizador']",
-                "a[href*='soat']",
-                "[data-target*='soat']",
-                ".soat-button",
-                "a:contains('SOAT')",
-                "button:contains('SOAT')",
-                "a:contains('Cotizar')",
-                "button:contains('Cotizar')"
-            ]
-
-            button_found = False
-            for selector in button_selectors:
-                try:
-                    if ":contains" in selector:
-                        text = selector.split("'")[1]
-                        button = WebDriverWait(self.driver, 3).until(
-                            EC.element_to_be_clickable((By.XPATH, f"//*[contains(text(), '{text}')]"))
-                        )
-                    else:
-                        button = WebDriverWait(self.driver, 3).until(
-                            EC.element_to_be_clickable((By.CSS_SELECTOR, selector))
-                        )
-
-                    self.driver.execute_script(
-                        "arguments[0].scrollIntoView({behavior: 'smooth', block: 'center'});",
-                        button
-                    )
-                    button.click()
-                    print(f"  [OK] Botón encontrado con selector: {selector}")
-                    button_found = True
-                    break
-                except:
-                    continue
-
-            if not button_found:
-                print("  [WARN] No se encontró botón específico, navegando directo al cotizador...")
-                self.navigate_to(cotizador_url)
-
-            WebDriverWait(self.driver, 10).until(
-                lambda d: "cotizador" in d.current_url.lower() or
-                          "soat" in d.title.lower()
-            )
-            print("  [OK] Navegación completada - En página de cotización\n")
-
+            print("  [OK] Navegación al cotizador completada")
+            self.take_screenshot("navegacion_cotizador")
         except Exception as e:
-            print(f"  [ERROR] Error en navegación secundaria: {e}")
-            print("  Reintentando con URL directa...")
-            self.navigate_to(cotizador_url)
-            WebDriverWait(self.driver, 5).until(
-                EC.presence_of_element_located(self.CAMPO_PLACA)
-            )
-            print("  [OK] Navegación forzada al cotizador\n")
+            print(f"  [ERROR] Error en navegación: {e}")
+            raise
 
     def select_tipo_vehiculo(self, tipo: str):
         """Selecciona el tipo de vehiculo (auto o moto)."""
@@ -139,7 +85,7 @@ class SoatPage(BasePage):
             time.sleep(2)
 
             # Seleccionar el selector apropiado basado en el tipo
-            if tipo.lower() == "auto":
+            if tipo.lower() in ["auto", "camioneta"]:
                 selector = self.CARD_AUTO
                 tipo_display = "AUTO"
             elif tipo.lower() == "moto":
@@ -198,6 +144,10 @@ class SoatPage(BasePage):
 
             time.sleep(3)
             print("  [OK] Tipo de vehiculo seleccionado\n")
+            self.take_screenshot(f"seleccion_{tipo}")
+
+        except Exception as e:
+            print(f"  [ERROR] Error general en select_tipo_vehiculo: {str(e)}\n")
 
         except Exception as e:
             print(f"  [ERROR] Error general en select_tipo_vehiculo: {str(e)}\n")
@@ -243,6 +193,7 @@ class SoatPage(BasePage):
                 print("  [OK] No hay errores de placa")
 
             print("  [OK] Placa procesada\n")
+            self.take_screenshot("ingreso_placa")
 
         except Exception as e:
             print(f"  [ERROR] Error al ingresar placa: {str(e)}\n")
@@ -252,10 +203,6 @@ class SoatPage(BasePage):
         print(f"\n>>> ACEPTANDO POLITICAS")
 
         try:
-            # Hacer scroll hacia abajo
-            self.driver.execute_script("window.scrollTo(0, document.body.scrollHeight);")
-            time.sleep(1)
-
             # Aceptar Finalidades Secundarias
             print("  1. Aceptando Finalidades Secundarias...")
             try:
@@ -284,8 +231,16 @@ class SoatPage(BasePage):
             except Exception as e:
                 print(f"  [WARN] Error en Politicas de Privacidad: {str(e)}")
 
-            time.sleep(1)
-            print("  3. [OK] Politicas procesadas\n")
+            # Hacer scroll hacia el botón cotizar para que se vea en la captura
+            print("  3. Posicionando vista para captura...")
+            button = WebDriverWait(self.driver, 5).until(
+                EC.element_to_be_clickable(self.BTN_COTIZAR)
+            )
+            self.driver.execute_script("arguments[0].scrollIntoView({behavior: 'smooth', block: 'center'});", button)
+            time.sleep(2)
+
+            print("  [OK] Politicas aceptadas\n")
+            self.take_screenshot("aceptacion_politicas")
 
         except Exception as e:
             print(f"  [ERROR] Error general en politicas: {str(e)}\n")
@@ -345,6 +300,7 @@ class SoatPage(BasePage):
 
             time.sleep(5)  # Esperar más tiempo para que procese la cotización
             print("  [OK] Cotización iniciada\n")
+            self.take_screenshot("cotizacion_iniciada")
 
         except Exception as e:
             print(f"  [ERROR] Error general en cotizar: {str(e)}")
@@ -420,10 +376,13 @@ class SoatPage(BasePage):
 
             if "S/" in page_text:
                 print("  [OK] Precio encontrado en Soles")
-                return "Cotizacion realizada exitosamente con precio en Soles"
+                result = "Cotizacion realizada exitosamente con precio en Soles"
             else:
                 print("  [OK] Cotizacion completada")
-                return "Cotizacion completada"
+                result = "Cotizacion completada"
+
+            self.take_screenshot("resultado_cotizacion")
+            return result
 
         except Exception as e:
             print(f"  [ERROR] Error al obtener resultado: {str(e)}")

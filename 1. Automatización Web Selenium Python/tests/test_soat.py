@@ -6,7 +6,9 @@ from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from webdriver_manager.chrome import ChromeDriverManager
 from pages.soat_page import SoatPage
+from utils.data_reader import DataReader
 import time
+import os
 
 @pytest.fixture(scope="function")
 def driver():
@@ -23,46 +25,58 @@ def driver():
     yield driver
     driver.quit()
 
-def test_cotizar_soat_bng018(driver):
-    """Cotiza SOAT para auto con placa BNG 018 (datos en duro)."""
+@pytest.fixture(scope="session")
+def test_data():
+    """Fixture para cargar datos de prueba desde Excel."""
+    data_reader = DataReader("data/test_data.xlsx")
+    return data_reader.read_soat_data()
 
-    # Datos en duro
-    placa = "BNG018"
-    tipo_vehiculo = "auto"
+def test_cotizar_soat(driver, test_data):
+    """Cotiza SOAT usando datos del archivo Excel."""
+    for test_case in test_data:
+        placa = test_case["placa"]
+        tipo_vehiculo = test_case["tipo_vehiculo"]
+        expected = test_case["expected_result"]
 
-    print("\n=== INICIANDO COTIZACIÓN SOAT DESDE HOME ===")
+        print(f"\n=== INICIANDO COTIZACIÓN SOAT PARA PLACA: {placa} ===")
 
-    soat = SoatPage(driver)
+        # Crear directorio para screenshots con nombre único
+        screenshots_dir = f"screenshots_{placa.replace('-', '_')}"
+        os.makedirs(screenshots_dir, exist_ok=True)
 
-    # Paso 1: Navegar desde home hasta cotización SOAT
-    print("PASO 1: Navegando desde home hasta cotización SOAT...")
-    soat.navigate_to_home_and_cotizar()
-    print("[OK] Navegación completada")
+        soat = SoatPage(driver, screenshots_dir)
 
-    # Paso 2: Seleccionar tipo de vehículo
-    print(f"\nPASO 2: Seleccionando tipo de vehículo: {tipo_vehiculo}...")
-    soat.select_tipo_vehiculo(tipo_vehiculo)
-    print("[OK] Tipo de vehículo seleccionado")
+        # Paso 1: Navegar directo al cotizador
+        print("PASO 1: Navegando al cotizador SOAT...")
+        soat.navigate_to_cotizador()
+        print("[OK] Navegación completada")
 
-    # Paso 3: Llenar placa
-    print(f"\nPASO 3: Ingresando placa: {placa}...")
-    soat.fill_placa(placa)
-    print("[OK] Placa ingresada")
+        # Paso 2: Seleccionar tipo de vehículo
+        print(f"\nPASO 2: Seleccionando tipo de vehículo: {tipo_vehiculo}...")
+        soat.select_tipo_vehiculo(tipo_vehiculo)
+        print("[OK] Tipo de vehículo seleccionado")
 
-    # Paso 4: Aceptar políticas
-    print("\nPASO 4: Aceptando políticas de privacidad...")
-    soat.accept_policies()
-    print("[OK] Políticas aceptadas")
+        # Paso 3: Llenar placa
+        print(f"\nPASO 3: Ingresando placa: {placa}...")
+        soat.fill_placa(placa)
+        print("[OK] Placa ingresada")
 
-    # Paso 5: Presionar botón cotizar
-    print("\nPASO 5: Presionando botón cotizar...")
-    soat.cotizar()
-    print("[OK] Boton cotizar presionado")
+        # Paso 4: Aceptar políticas
+        print("\nPASO 4: Aceptando políticas de privacidad...")
+        soat.accept_policies()
+        print("[OK] Políticas aceptadas")
 
-    # Paso 6: Obtener resultado
-    print("\nPASO 6: Obteniendo resultado...")
-    resultado = soat.get_resultado()
-    print(f"[OK] Resultado obtenido: {resultado}")
+        # Paso 5: Presionar botón cotizar
+        print("\nPASO 5: Presionando botón cotizar...")
+        soat.cotizar()
+        print("[OK] Boton cotizar presionado")
 
-    print("\n=== COTIZACION COMPLETADA EXITOSAMENTE ===")
-    assert len(resultado) > 0
+        # Paso 6: Obtener resultado
+        print("\nPASO 6: Obteniendo resultado...")
+        resultado = soat.get_resultado()
+        print(f"[OK] Resultado obtenido: {resultado}")
+
+        print(f"\n=== COTIZACION COMPLETADA PARA {placa} ===")
+
+        # Verificar que el resultado contenga algo esperado
+        assert expected.lower() in resultado.lower() or "exitosa" in resultado.lower()
