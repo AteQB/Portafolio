@@ -3,6 +3,7 @@ from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.common.action_chains import ActionChains
+from utils.config import Config
 import time
 import os
 
@@ -56,15 +57,16 @@ class SoatPage(BasePage):
         """Navega directamente al cotizador SOAT."""
         print(f"\n>>> NAVEGANDO DIRECTO AL COTIZADOR")
 
-        cotizador_url = 'https://www.lapositiva.com.pe/wps/portal/corporativo/home/cotizador'
         try:
             print("  Navegando al cotizador...")
-            self.navigate_to(cotizador_url)
-            WebDriverWait(self.driver, 10).until(
+            self.navigate_to(Config.COTIZADOR_URL)
+            WebDriverWait(self.driver, Config.WAIT_TIMEOUT).until(
                 EC.presence_of_element_located(self.CAMPO_PLACA)
             )
             print("  [OK] Navegación al cotizador completada")
-            self.take_screenshot("navegacion_cotizador")
+            
+            if Config.TAKE_SCREENSHOTS:
+                self.take_screenshot("navegacion_cotizador")
         except Exception as e:
             print(f"  [ERROR] Error en navegación: {e}")
             raise
@@ -75,7 +77,7 @@ class SoatPage(BasePage):
 
         try:
             # Esperar a que la página cargue completamente
-            WebDriverWait(self.driver, 15).until(
+            WebDriverWait(self.driver, Config.PAGE_LOAD_TIMEOUT).until(
                 lambda driver: driver.execute_script("return document.readyState") == "complete"
             )
             time.sleep(3)
@@ -98,7 +100,7 @@ class SoatPage(BasePage):
             print(f"  Buscando card para {tipo_display}...")
 
             # Esperar a que el elemento esté presente y clickeable
-            card_element = WebDriverWait(self.driver, 10).until(
+            card_element = WebDriverWait(self.driver, Config.WAIT_TIMEOUT).until(
                 EC.element_to_be_clickable(selector)
             )
 
@@ -144,13 +146,13 @@ class SoatPage(BasePage):
 
             time.sleep(3)
             print("  [OK] Tipo de vehiculo seleccionado\n")
-            self.take_screenshot(f"seleccion_{tipo}")
+            
+            if Config.TAKE_SCREENSHOTS:
+                self.take_screenshot(f"seleccion_{tipo}")
 
         except Exception as e:
             print(f"  [ERROR] Error general en select_tipo_vehiculo: {str(e)}\n")
 
-        except Exception as e:
-            print(f"  [ERROR] Error general en select_tipo_vehiculo: {str(e)}\n")
     def fill_placa(self, placa: str):
         """Ingresa la placa del vehiculo."""
         print(f"\n>>> INGRESANDO PLACA: {placa}")
@@ -161,7 +163,7 @@ class SoatPage(BasePage):
             time.sleep(1)
 
             # Esperar a que el campo esté presente
-            campo_placa = WebDriverWait(self.driver, 10).until(
+            campo_placa = WebDriverWait(self.driver, Config.WAIT_TIMEOUT).until(
                 EC.presence_of_element_located(self.CAMPO_PLACA)
             )
 
@@ -193,7 +195,9 @@ class SoatPage(BasePage):
                 print("  [OK] No hay errores de placa")
 
             print("  [OK] Placa procesada\n")
-            self.take_screenshot("ingreso_placa")
+            
+            if Config.TAKE_SCREENSHOTS:
+                self.take_screenshot("ingreso_placa")
 
         except Exception as e:
             print(f"  [ERROR] Error al ingresar placa: {str(e)}\n")
@@ -206,7 +210,7 @@ class SoatPage(BasePage):
             # Aceptar Finalidades Secundarias
             print("  1. Aceptando Finalidades Secundarias...")
             try:
-                fs_checkbox = WebDriverWait(self.driver, 5).until(
+                fs_checkbox = WebDriverWait(self.driver, Config.CLICK_WAIT).until(
                     EC.element_to_be_clickable(self.CHK_FINALIDADES)
                 )
                 if not fs_checkbox.is_selected():
@@ -220,7 +224,7 @@ class SoatPage(BasePage):
             # Aceptar Politicas de Privacidad
             print("  2. Aceptando Politicas de Privacidad...")
             try:
-                pp_checkbox = WebDriverWait(self.driver, 5).until(
+                pp_checkbox = WebDriverWait(self.driver, Config.CLICK_WAIT).until(
                     EC.element_to_be_clickable(self.CHK_PRIVACIDAD)
                 )
                 if not pp_checkbox.is_selected():
@@ -233,14 +237,16 @@ class SoatPage(BasePage):
 
             # Hacer scroll hacia el botón cotizar para que se vea en la captura
             print("  3. Posicionando vista para captura...")
-            button = WebDriverWait(self.driver, 5).until(
+            button = WebDriverWait(self.driver, Config.CLICK_WAIT).until(
                 EC.element_to_be_clickable(self.BTN_COTIZAR)
             )
             self.driver.execute_script("arguments[0].scrollIntoView({behavior: 'smooth', block: 'center'});", button)
             time.sleep(2)
 
             print("  [OK] Politicas aceptadas\n")
-            self.take_screenshot("aceptacion_politicas")
+            
+            if Config.TAKE_SCREENSHOTS:
+                self.take_screenshot("aceptacion_politicas")
 
         except Exception as e:
             print(f"  [ERROR] Error general en politicas: {str(e)}\n")
@@ -255,7 +261,7 @@ class SoatPage(BasePage):
             time.sleep(2)
 
             # Buscar el botón usando el selector específico
-            button = WebDriverWait(self.driver, 10).until(
+            button = WebDriverWait(self.driver, Config.WAIT_TIMEOUT).until(
                 EC.element_to_be_clickable(self.BTN_COTIZAR)
             )
             print("  [OK] Botón encontrado por ID")
@@ -300,7 +306,9 @@ class SoatPage(BasePage):
 
             time.sleep(5)  # Esperar más tiempo para que procese la cotización
             print("  [OK] Cotización iniciada\n")
-            self.take_screenshot("cotizacion_iniciada")
+            
+            if Config.TAKE_SCREENSHOTS:
+                self.take_screenshot("cotizacion_iniciada")
 
         except Exception as e:
             print(f"  [ERROR] Error general en cotizar: {str(e)}")
@@ -381,7 +389,9 @@ class SoatPage(BasePage):
                 print("  [OK] Cotizacion completada")
                 result = "Cotizacion completada"
 
-            self.take_screenshot("resultado_cotizacion")
+            if Config.TAKE_SCREENSHOTS:
+                self.take_screenshot("resultado_cotizacion")
+                
             return result
 
         except Exception as e:

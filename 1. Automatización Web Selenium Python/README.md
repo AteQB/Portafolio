@@ -1,36 +1,36 @@
 # SOAT Cotizador - Automatización La Positiva
 
-Automatización para cotizar **SOAT** (Seguro Obligatorio de Accidentes de Tránsito) en La Positiva usando **Playwright** con patrón **Page Object Model (POM)**.
+Automatización para cotizar **SOAT** (Seguro Obligatorio de Accidentes de Tránsito) en La Positiva usando **Selenium** con patrón **Page Object Model (POM)**.
 
 ---
 
 ## 📋 Estructura del Proyecto
 
 ```
-Automatización Web Python Playwright/
+1. Automatización Web Selenium Python/
 ├── pages/                      # Page Objects (Lógica de interacción con UI)
 │   ├── base_page.py           # Clase base con métodos comunes
-│   ├── home_page.py           # Página principal de La Positiva
+│   ├── home_page.py           # Página principal (DEPRECADO - usar SoatPage)
 │   └── soat_page.py           # Página de cotización SOAT
 │
 ├── tests/                      # Tests (Casos de prueba)
-│   └── test_soat.py           # Test principal de cotización
+│   └── test_soat.py           # Test principal de cotización con datos Excel
 │
 ├── utils/                      # Utilidades
 │   ├── config.py              # Configuración del navegador
 │   └── data_reader.py         # Lectura de datos desde Excel
 │
 ├── data/                       # Datos de prueba
-│   └── test_data.xlsx         # Excel con datos para parametrizar
+│   └── test_data.xlsx         # Excel con datos para parametrizar pruebas
 │
-├── conftest.py               # Fixtures de pytest/Playwright
-├── requirements.txt          # Dependencias Python
-└── README.md                 # Este archivo
+├── screenshots_*/              # Capturas de pantalla por placa
+├── requirements.txt            # Dependencias Python
+└── README.md                   # Este archivo
 ```
 
 ---
 
-## 🚀 Guía Paso a Paso para Ejecutar
+## 🚀 Instalación y Ejecución
 
 ### **Paso 1: Instalar Dependencias**
 
@@ -39,15 +39,78 @@ pip install -r requirements.txt
 ```
 
 Instala automáticamente:
-- `playwright==1.58.0` - Automatización web
-- `pytest==9.0.2` - Framework de testing  
-- `openpyxl==3.1.2` - Lectura de Excel
+- `selenium==4.x` - Automatización web
+- `pytest==7.x` - Framework de testing  
+- `openpyxl==3.x` - Lectura de Excel
+- `webdriver-manager==4.x` - Gestión de ChromeDriver
 
 ### **Paso 2: Ejecutar el Test**
 
 ```bash
-pytest tests/test_soat.py::test_cotizar_soat_bng018 -v -s
+pytest tests/test_soat.py::test_cotizar_soat -v -s
 ```
+
+**Parámetros:**
+- `-v`: Verbose (muestra más detalles)
+- `-s`: Show (muestra los prints del código)
+
+### **Paso 3: Revisar Evidencias**
+
+Las capturas de pantalla se guardan automáticamente en carpetas como:
+- `screenshots_ABC_123/` - Screenshots para placa ABC-123
+- `screenshots_XYZ_456/` - Screenshots para placa XYZ-456
+
+Cada carpeta contiene:
+1. `01_navegacion_cotizador.png` - Ingreso al cotizador
+2. `02_seleccion_auto.png` - Selección del tipo de vehículo
+3. `03_ingreso_placa.png` - Ingreso de placa
+4. `04_aceptacion_politicas.png` - Checkboxes marcados y botón
+5. `05_cotizacion_iniciada.png` - Después de presionar cotizar
+6. `06_resultado_cotizacion.png` - Resultado final
+
+---
+
+## 📊 Datos de Prueba
+
+El archivo `data/test_data.xlsx` contiene:
+- **Columna A (placa)**: Número de placa (ej: ABC-123)
+- **Columna B (tipo_vehiculo)**: Tipo de vehículo (auto, camioneta, moto)
+- **Columna C (expected_result)**: Resultado esperado
+
+El test ejecutará automáticamente todos los casos definidos en Excel.
+
+---
+
+## 🔧 Flujo de Cotización
+
+1. ✅ **Navegación directa** al cotizador de SOAT
+2. ✅ **Selección de tipo** de vehículo (auto/camioneta/moto)
+3. ✅ **Ingreso de placa** desde datos Excel
+4. ✅ **Aceptación de políticas**:
+   - Finalidades Secundarias
+   - Políticas de Privacidad
+5. ✅ **Presión del botón** "Vamos por tu SOAT"
+6. ✅ **Obtención de resultado** y validación
+
+---
+
+## 📝 Selectores Confirmados
+
+```python
+CAMPO_PLACA = (By.ID, "iplaca-home")
+CHK_FINALIDADES = (By.ID, "flagFinalidadesSecundarias")
+CHK_PRIVACIDAD = (By.ID, "flagPoliticaPrivacidad")
+BTN_COTIZAR = (By.ID, "btngo")
+CARD_AUTO = (By.CSS_SELECTOR, ".lq-slide__card-item:first-child")
+CARD_MOTO = (By.CSS_SELECTOR, ".lq-slide__card-item:last-child")
+```
+
+---
+
+## ⚙️ Configuración
+
+Ver `utils/config.py` para ajustar:
+- `BROWSER_HEADLESS` - Mostrar/ocultar navegador (default: False)
 
 **Flags explicados:**
 - `-v` → Verbose (muestra detalles de ejecución)
