@@ -1,62 +1,60 @@
-# 1. IMPORTACIONES: Traemos las herramientas necesarias
-# FastAPI: El motor para crear la API
-# Optional: Permite que los filtros sean opcionales (puedes buscar por nombre o no)
+# 1. IMPORTACIONES: Herramientas para la API y conexión a Base de Datos
 from fastapi import FastAPI, Query
 import mysql.connector
 from typing import Optional
 
-# 2. INICIALIZACIÓN: Creamos la aplicación
+# 2. INICIALIZACIÓN: Creamos la instancia de FastAPI
 app = FastAPI()
 
-# 3. CONEXIÓN: Función para conectar con tu base de datos MariaDB
-# Usamos los datos que se ven en tu phpMyAdmin (127.0.0.1 y usuario root)
+# 3. CONEXIÓN: Configuración para tu base de datos 'muestra_mineria'
+# Se utiliza el usuario root y host local de tu XAMPP/Laragon
 def get_db_connection():
     return mysql.connector.connect(
         host="127.0.0.1",
         user="root",
-        password="", # Por defecto en XAMPP está vacío
+        password="", 
         database="muestra_mineria"
     )
 
-# 4. MÉTODO GET (Consulta): La "puerta" para buscar datos desde Postman
-# Definimos la ruta '/api/v1/buscar' y los parámetros de búsqueda
+# 4. MÉTODO GET: Consulta con filtros para Minería de Datos
+# IMPORTANTE: Los nombres de estas variables deben ser iguales en Postman (Key)
 @app.get("/api/v1/buscar")
 def filtrar_vehiculos(
     nombre: Optional[str] = None, 
     tipo: Optional[str] = None, 
     uso: Optional[str] = None
 ):
-    # Abrimos la conexión y preparamos el cursor en formato diccionario
-    # Esto es vital para que Postman reciba los datos como clave:valor (JSON)
+    # Abrimos la conexión y el cursor en formato diccionario para JSON
     conn = get_db_connection()
     cursor = conn.cursor(dictionary=True)
     
-    # ESTRUCTURA DE LA CONSULTA SQL DINÁMICA:
-    # 'WHERE 1=1' permite ir agregando filtros de forma flexible
+    # Iniciamos la consulta base con el truco '1=1'
     query = "SELECT * FROM usuarios_prueba WHERE 1=1"
     valores = []
 
-    # Lógica de búsqueda: Si envías un dato en Postman, se agrega al SQL
+    # Lógica de filtrado dinámico:
+    # Si el parámetro llega desde Postman, se agrega a la consulta SQL
     if nombre:
         query += " AND nombre LIKE %s"
-        valores.append(f"%{nombre}%") # % permite coincidencias parciales
+        valores.append(f"%{nombre}%") # Búsqueda parcial (ej: 'Lucia' encuentra 'Lucia Castro')
+        
     if tipo:
+        # Filtra por columna 'tipo_vehiculo' usando el parámetro 'tipo'
         query += " AND tipo_vehiculo = %s"
         valores.append(tipo)
+        
     if uso:
+        # Filtra por columna 'tipo_uso' usando el parámetro 'uso'
         query += " AND tipo_uso = %s"
         valores.append(uso)
 
-    # Ejecutamos la consulta con los filtros aplicados
+    # Ejecución de la consulta final filtrada
     cursor.execute(query, valores)
     resultados = cursor.fetchall()
     
-    # Cerramos conexiones para liberar recursos del servidor
+    # Cierre de conexiones para liberar recursos del sistema
     cursor.close()
-    conn.close()
+    conn.close() 
     
-    # Devolvemos los datos encontrados
+    # Retornamos los datos filtrados (si no hay filtros, devuelve los 50 registros)
     return resultados
-
-# Para ejecutar la API, usa el siguiente comando en la terminal:
-# uvicorn main_apis:app --reload
